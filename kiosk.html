@@ -1,0 +1,484 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Staff Kiosk · Now Serving</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-seriFf;
+      background: #0b2b4f; color: white;
+      display: flex; flex-direction: column;
+      padding: 18px; gap: 14px; height: 100vh; overflow: hidden;
+    }
+
+    /* ---- NOW SERVING ---- */
+    .now-serving {
+      flex: 2 1 0; min-height: 180px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center;
+      background: #123f6e; border-radius: 28px; padding: 20px;
+      box-shadow: 0 20px 40px rgba(0,0,0,.3);
+    }
+    .label {
+      font-size: 1.2rem; letter-spacing: 6px; font-weight: 600;
+      color: #8fb8d9; margin-bottom: 10px;
+    }
+    .ticket {
+      font-size: clamp(4rem, 14vh, 10rem); font-weight: 900;
+      line-height: 1; color: #ffd166; font-variant-numeric: tabular-nums;
+    }
+    .name {
+      font-size: clamp(1.1rem, 2.4vh, 1.8rem); color: #c7ddef;
+      margin-top: 10px; min-height: 1em;
+    }
+
+    /* ---- UP NEXT ---- */
+    .up-next {
+      flex: 0 0 auto; background: #123f6e; border-radius: 22px;
+      padding: 14px 18px;
+    }
+    .up-next h2 {
+      font-size: .95rem; letter-spacing: 4px;
+      color: #8fb8d9; margin-bottom: 10px; font-weight: 600;
+    }
+    .queue-list {
+      display: flex; gap: 12px; flex-wrap: nowrap;
+      list-style: none; overflow-x: auto; padding-bottom: 4px;
+    }
+    .queue-list li {
+      flex: 0 0 auto; min-width: 140px;
+      background: rgba(255,255,255,.08);
+      padding: 10px 14px; border-radius: 14px;
+      line-height: 1.25; text-align: left;
+    }
+    .queue-list li:first-child {
+      background: rgba(255,209,102,.2);
+      border: 1px solid rgba(255,209,102,.4);
+    }
+    .queue-list .q-tnum {
+      font-size: 1.3rem; font-weight: 800;
+      color: #ffd166; font-variant-numeric: tabular-nums;
+    }
+    .queue-list li:not(:first-child) .q-tnum { color: #e2eef8; }
+    .queue-list .q-name {
+      font-size: .9rem; font-weight: 600; color: #e2eef8; margin-top: 3px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .queue-list .q-reason {
+      font-size: .75rem; color: #8fb8d9; margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .queue-list .empty {
+      background: none; font-size: 1.1rem; color: #6f90af;
+      font-style: italic; padding: 8px 4px;
+    }
+
+    /* ---- BOTTOM GRID (waiting + history) ---- */
+    .bottom-grid {
+      flex: 2 1 0; min-height: 0;
+      display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px;
+    }
+    .panel {
+      background: #123f6e; border-radius: 22px;
+      padding: 14px 18px;
+      display: flex; flex-direction: column; min-height: 0;
+    }
+    .panel h2 {
+      font-size: .95rem; letter-spacing: 3px;
+      color: #8fb8d9; margin-bottom: 10px; font-weight: 600;
+      flex: 0 0 auto;
+    }
+    .log-scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; border-radius: 12px; }
+    .log-scroll table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    .log-scroll th {
+      text-align: left; padding: 8px 10px;
+      font-size: .7rem; letter-spacing: 1px; color: #8fb8d9;
+      font-weight: 600; border-bottom: 1px solid rgba(255,255,255,.1);
+      position: sticky; top: 0; background: #123f6e; z-index: 1;
+    }
+    .log-scroll td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+      color: #e2eef8; vertical-align: top;
+    }
+    .log-scroll tr:hover td { background: rgba(255,255,255,.03); }
+    .log-scroll .tnum { font-weight: 700; color: #ffd166; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .log-scroll .time { color: #8fb8d9; font-size: .82rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .log-scroll .empty-row {
+      text-align: center; color: #6f90af; font-style: italic; padding: 24px;
+    }
+
+    /* ---- CONTROLS ---- */
+    .controls {
+      flex: 0 0 auto;
+      display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+    }
+    .controls button {
+      font-family: inherit; font-size: 1.05rem; font-weight: 600;
+      padding: 12px 26px; border: none; border-radius: 14px;
+      cursor: pointer; transition: transform .1s;
+    }
+    .controls button:active { transform: scale(.97); }
+    .btn-next { background: #ffd166; color: #0b2b4f; }
+    .btn-next:hover { background: #ffdb85; }
+    .btn-add { background: #1e5f8e; color: white; }
+    .btn-add:hover { background: #2a76ab; }
+    .btn-reset { background: rgba(255,255,255,.1); color: #ff9b9b; }
+    .btn-reset:hover { background: rgba(255,255,255,.15); }
+    .btn-fullscreen {
+      position: fixed; top: 14px; right: 14px; z-index: 10;
+      background: rgba(255,255,255,.1); color: #8fb8d9;
+      padding: 8px 14px; font-size: .9rem; border: none;
+      border-radius: 10px; cursor: pointer; font-family: inherit;
+    }
+
+    /* ---- small screens ---- */
+    @media (max-width: 900px) {
+      .bottom-grid { grid-template-columns: 1fr; }
+      .queue-list li { min-width: 120px; }
+    }
+  </style>
+</head>
+<body>
+  <button class="btn-fullscreen" id="fullscreenBtn">⛶ Fullscreen (F)</button>
+
+  <!-- NOW SERVING -->
+  <div class="now-serving">
+    <div class="label">NOW SERVING</div>
+    <div class="ticket" id="nowServing">—</div>
+    <div class="name" id="nowName"></div>
+  </div>
+
+  <!-- UP NEXT -->
+  <div class="up-next">
+    <h2>UP NEXT</h2>
+    <ul class="queue-list" id="queueList">
+      <li class="empty">No tickets in queue</li>
+    </ul>
+  </div>
+
+  <!-- WAITING LOG + SERVED HISTORY -->
+  <div class="bottom-grid">
+    <div class="panel">
+      <h2>ALL WAITING (<span id="waitingTotal">0</span>)</h2>
+      <div class="log-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Ticket</th>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Reason</th>
+              <th>Joined</th>
+              <th>Waited</th>
+            </tr>
+          </thead>
+          <tbody id="waitingBody">
+            <tr><td colspan="6" class="empty-row">No one waiting</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>SERVED TODAY (<span id="servedTotal">0</span>)</h2>
+      <div class="log-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Ticket</th>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Reason</th>
+              <th>Served at</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody">
+            <tr><td colspan="5" class="empty-row">No customers served yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <button class="btn-add" id="addBtn">＋ Add walk-in (A)</button>
+    <button class="btn-next" id="nextBtn">▶ Call next (→)</button>
+    <button class="btn-reset" id="resetBtn">⟲ Reset (R)</button>
+  </div>
+
+<script src="firebase-config.js"></script>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import {
+  getDatabase, ref, onValue, push, set, remove,
+  runTransaction, serverTimestamp
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+const app = initializeApp(window.FIREBASE_CONFIG);
+const db = getDatabase(app);
+
+// ============================================================
+// DOM
+// ============================================================
+const nowServingEl = document.getElementById('nowServing');
+const nowNameEl    = document.getElementById('nowName');
+const queueListEl  = document.getElementById('queueList');
+const waitingTotal = document.getElementById('waitingTotal');
+const waitingBody  = document.getElementById('waitingBody');
+const servedTotal  = document.getElementById('servedTotal');
+const historyBody  = document.getElementById('historyBody');
+
+// ============================================================
+// STATE
+// ============================================================
+let allTickets  = {};
+let nowServing  = null;
+let servedCount = 0;
+let history     = {};
+
+// ============================================================
+// HELPERS
+// ============================================================
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function fmtTime(ms) {
+  if (!ms) return '—';
+  return new Date(ms).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+}
+function fmtWaited(ms) {
+  if (!ms) return '—';
+  const sec = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return m + 'm ' + (s < 10 ? '0' : '') + s + 's';
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderNowServing() {
+  if (nowServing) {
+    nowServingEl.textContent = nowServing.ticket || '—';
+    nowNameEl.textContent = nowServing.name || '';
+  } else {
+    nowServingEl.textContent = '—';
+    nowNameEl.textContent = '';
+  }
+}
+
+function renderUpNext() {
+  const ids = Object.keys(allTickets).sort();
+  if (ids.length === 0) {
+    queueListEl.innerHTML = '<li class="empty">No tickets in queue</li>';
+    return;
+  }
+  queueListEl.innerHTML = ids.slice(0, 10).map(id => {
+    const t = allTickets[id];
+    return '<li>' +
+      '<div class="q-tnum">' + esc(t.ticket) + '</div>' +
+      '<div class="q-name">' + esc(t.name || '—') + '</div>' +
+      '<div class="q-reason">' + esc(t.reason || '') + '</div>' +
+    '</li>';
+  }).join('');
+}
+
+function renderWaitingLog() {
+  const ids = Object.keys(allTickets).sort();
+  waitingTotal.textContent = ids.length;
+
+  if (ids.length === 0) {
+    waitingBody.innerHTML = '<tr><td colspan="6" class="empty-row">No one waiting</td></tr>';
+    return;
+  }
+
+  waitingBody.innerHTML = ids.map(id => {
+    const t = allTickets[id];
+    const joined = t.createdAt || Date.now();
+    return '<tr data-joined="' + joined + '">' +
+      '<td class="tnum">' + esc(t.ticket) + '</td>' +
+      '<td>' + esc(t.name || '—') + '</td>' +
+      '<td class="time">' + esc(t.phone || '—') + '</td>' +
+      '<td>' + esc(t.reason || '') + '</td>' +
+      '<td class="time">' + fmtTime(joined) + '</td>' +
+      '<td class="time waited-cell">' + fmtWaited(joined) + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function renderHistory() {
+  const entries = Object.entries(history)
+    .map(([id, v]) => ({ id, ...v }))
+    .sort((a, b) => (b.servedAt || 0) - (a.servedAt || 0));
+
+  servedTotal.textContent = entries.length;
+
+  if (entries.length === 0) {
+    historyBody.innerHTML = '<tr><td colspan="5" class="empty-row">No customers served yet</td></tr>';
+    return;
+  }
+
+  historyBody.innerHTML = entries.slice(0, 50).map(e =>
+    '<tr>' +
+      '<td class="tnum">' + esc(e.ticket) + '</td>' +
+      '<td>' + esc(e.name || '—') + '</td>' +
+      '<td class="time">' + esc(e.phone || '—') + '</td>' +
+      '<td>' + esc(e.reason || '') + '</td>' +
+      '<td class="time">' + fmtTime(e.servedAt) + '</td>' +
+    '</tr>'
+  ).join('');
+}
+
+function render() {
+  renderNowServing();
+  renderUpNext();
+  renderWaitingLog();
+  renderHistory();
+}
+
+// ============================================================
+// LIVE LISTENERS
+// ============================================================
+onValue(ref(db, 'queue/tickets'), (snap) => {
+  allTickets = snap.val() || {};
+  render();
+});
+onValue(ref(db, 'queue/config/nowServing'), (snap) => {
+  nowServing = snap.val();
+  renderNowServing();
+});
+onValue(ref(db, 'queue/config/servedCount'), (snap) => {
+  servedCount = snap.val() || 0;
+});
+onValue(ref(db, 'queue/history'), (snap) => {
+  history = snap.val() || {};
+  renderHistory();
+});
+
+// ============================================================
+// ACTIONS
+// ============================================================
+async function callNext() {
+  const ids = Object.keys(allTickets).sort();
+  if (ids.length === 0) { alert('Queue is empty.'); return; }
+
+  const firstId = ids[0];
+  const first = allTickets[firstId];
+
+  // optimistic
+  nowServingEl.textContent = first.ticket;
+  nowNameEl.textContent = first.name || '';
+
+  try {
+    await set(ref(db, 'queue/config/nowServing'), {
+      ticket: first.ticket,
+      name: first.name || '',
+      phone: first.phone || '',
+      reason: first.reason || '',
+      servedAt: serverTimestamp()
+    });
+    await push(ref(db, 'queue/history'), {
+      ticket: first.ticket,
+      name: first.name || '',
+      phone: first.phone || '',
+      reason: first.reason || '',
+      servedAt: serverTimestamp()
+    });
+    await remove(ref(db, 'queue/tickets/' + firstId));
+    await runTransaction(ref(db, 'queue/config/servedCount'), (cur) => (cur || 0) + 1);
+
+    // beep
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .4);
+      osc.start(); osc.stop(ctx.currentTime + .4);
+    } catch (e) {}
+  } catch (err) {
+    console.error(err);
+    alert('Could not call next: ' + err.message);
+  }
+}
+
+async function addWalkIn() {
+  const name = prompt('Customer name:');
+  if (name === null) return;
+  const phone = prompt('Phone number (optional):') || '';
+  const reason = prompt('Reason for visit (optional):') || 'Walk-in';
+
+  try {
+    const result = await runTransaction(ref(db, 'queue/config/nextNumber'), (cur) => (cur || 0) + 1);
+    const num = result.snapshot.val();
+    const ticketNum = 'A-' + String(num).padStart(3, '0');
+
+    await push(ref(db, 'queue/tickets'), {
+      ticket: ticketNum,
+      name: name.trim(),
+      phone: phone.trim(),
+      reason: reason.trim() || 'Walk-in',
+      createdAt: serverTimestamp()
+    });
+  } catch (err) {
+    console.error(err);
+    alert('Could not add ticket: ' + err.message);
+  }
+}
+
+async function resetAll() {
+  if (!confirm('Reset the entire queue? This removes ALL waiting tickets, clears now-serving, and wipes history.')) return;
+  try {
+    await remove(ref(db, 'queue/tickets'));
+    await remove(ref(db, 'queue/history'));
+    await set(ref(db, 'queue/config/nowServing'), null);
+    await set(ref(db, 'queue/config/servedCount'), 0);
+  } catch (err) {
+    console.error(err);
+    alert('Could not reset: ' + err.message);
+  }
+}
+
+// ============================================================
+// WIRE UP
+// ============================================================
+document.getElementById('addBtn').addEventListener('click', addWalkIn);
+document.getElementById('nextBtn').addEventListener('click', callNext);
+document.getElementById('resetBtn').addEventListener('click', resetAll);
+
+document.getElementById('fullscreenBtn').addEventListener('click', () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+  else document.exitFullscreen().catch(() => {});
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); callNext(); }
+  if (e.key === 'a' || e.key === 'A') addWalkIn();
+  if (e.key === 'r' || e.key === 'R') resetAll();
+  if (e.key === 'f' || e.key === 'F') document.getElementById('fullscreenBtn').click();
+});
+
+// Refresh "waited" column every 10s without re-rendering (preserves scroll)
+setInterval(() => {
+  document.querySelectorAll('tr[data-joined]').forEach(tr => {
+    const joined = parseInt(tr.dataset.joined, 10);
+    const cell = tr.querySelector('.waited-cell');
+    if (cell) cell.textContent = fmtWaited(joined);
+  });
+}, 10000);
+
+// Initial render
+render();
+</script>
+</body>
+</html>

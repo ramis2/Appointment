@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>Scan QR · Appointment queue</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      background: #f4f7fc; min-height: 100vh; display: flex;
+      align-items: center; justify-content: center; padding: 16px;
+    }
+    .page {
+      max-width: 900px; width: 100%; background: white; border-radius: 36px;
+      padding: 32px 28px 36px;
+      box-shadow: 0 20px 40px rgba(0,0,0,.08), 0 8px 20px rgba(0,20,40,.06);
+    }
+    .title-section { text-align: center; margin-bottom: 24px; }
+    .title-section h1 {
+      font-size: 2.2rem; font-weight: 700; color: #0b2b4f;
+      display: flex; align-items: center; justify-content: center;
+      gap: 12px; flex-wrap: wrap;
+    }
+    .title-section h1 span {
+      background: #e8f0fe; border-radius: 60px; padding: 6px 16px;
+      font-size: 1.1rem; font-weight: 500; color: #1a5a9c;
+    }
+    .subhead {
+      font-size: 1.1rem; color: #3a5e7a; margin-top: 8px;
+      border-bottom: 2px dashed #cddfed; padding-bottom: 16px;
+    }
+    .kiosk-print-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      background: #0b2b4f; color: white; border: none; border-radius: 60px;
+      padding: 16px 34px; font-size: 1.15rem; font-weight: 600; cursor: pointer;
+      box-shadow: 0 8px 20px rgba(11,43,79,.25); margin-top: 20px; font-family: inherit;
+      transition: transform .15s, background .15s;
+    }
+    .kiosk-print-btn:hover { background: #123f6e; }
+    .kiosk-print-btn:active { transform: scale(.97); }
+    .print-hint { font-size: .9rem; color: #4f6f8f; margin-top: 12px; }
+    .print-hint strong { color: #0b2b4f; }
+    .qr-area {
+      display: flex; flex-wrap: wrap; align-items: flex-start;
+      justify-content: center; gap: 36px; margin: 24px 0 28px;
+    }
+    .qr-wrapper {
+      background: white; padding: 18px; border-radius: 28px;
+      box-shadow: 0 10px 24px rgba(0,40,80,.12);
+      border: 2px solid #d9e6f2;
+    }
+    #qrcode { width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; }
+    #qrcode img { width: 100%; height: 100%; object-fit: contain; }
+    .status-card {
+      background: #ecf3fa; border-radius: 28px; padding: 20px 22px;
+      min-width: 280px; max-width: 400px; flex: 1 1 280px;
+      box-shadow: inset 0 1px 4px rgba(255,255,255,.8), 0 4px 10px rgba(0,0,0,.02);
+    }
+    .label {
+      font-size: .85rem; text-transform: uppercase; letter-spacing: .5px;
+      font-weight: 600; color: #3e6a8c; margin-bottom: 10px;
+    }
+    .form-row { margin-bottom: 12px; }
+    .form-row label {
+      display: block; font-size: .8rem; font-weight: 600;
+      color: #3e6a8c; margin-bottom: 4px;
+    }
+    .form-row input {
+      width: 100%; padding: 12px 14px; border: 1.5px solid #b9d2e7;
+      border-radius: 14px; font-size: 16px; font-family: inherit;
+      color: #0b2b4f; background: white;
+    }
+    .form-row input:focus {
+      outline: none; border-color: #3b7cab;
+      box-shadow: 0 0 0 3px rgba(59,124,171,.15);
+    }
+    .form-row input::placeholder { color: #93b0c9; }
+    .input-hint { font-size: .75rem; color: #5e82a4; margin-top: 4px; }
+    .submit-btn {
+      width: 100%; padding: 14px 20px; background: #1e5f8e; color: white;
+      border: none; border-radius: 16px; font-size: 1rem; font-weight: 600;
+      font-family: inherit; cursor: pointer; transition: background .15s; margin-top: 4px;
+    }
+    .submit-btn:hover { background: #164a6e; }
+    .submit-btn:disabled { background: #90aac1; cursor: not-allowed; }
+    .turn {
+      font-size: 2.6rem; font-weight: 800; line-height: 1.2; color: #0b2b4f;
+    }
+    .waiting {
+      font-size: 1.1rem; font-weight: 500; color: #26648b;
+      background: white; padding: 6px 16px; border-radius: 40px;
+      display: inline-block; margin-top: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.04);
+    }
+    .countdown {
+      font-size: 2rem; font-weight: 800; color: #1e5f8e; margin-top: 14px;
+      font-variant-numeric: tabular-nums;
+    }
+    .countdown-label {
+      font-size: .8rem; text-transform: uppercase; color: #3e6a8c;
+      font-weight: 600; letter-spacing: .5px;
+    }
+    .ticket-meta {
+      margin-top: 12px; font-size: .9rem; color: #2d5373;
+      background: white; padding: 10px 14px; border-radius: 12px; line-height: 1.55;
+    }
+    .ticket-meta strong { color: #0b2b4f; }
+    .turn-msg {
+      margin-top: 12px; padding: 14px 16px; background: #e8f7ea;
+      color: #1b5e20; border-radius: 14px; font-weight: 600;
+      text-align: center; display: none;
+    }
+    .turn-msg.show { display: block; }
+    .removed-msg {
+      margin-top: 12px; padding: 14px 16px; background: #fff3e0;
+      color: #8a4b00; border-radius: 14px; font-weight: 600;
+      text-align: center; display: none;
+    }
+    .removed-msg.show { display: block; }
+    .instructions {
+      background: #f9fcff; border-radius: 28px; padding: 22px 24px;
+      border: 1px solid #d0e2f0; margin: 28px 0 22px;
+    }
+    .instructions h2 {
+      font-size: 1.5rem; font-weight: 600; color: #183b56;
+      display: flex; align-items: center; gap: 10px; margin-bottom: 20px;
+    }
+    .instructions h2 span {
+      background: #183b56; color: white; border-radius: 30px;
+      padding: 4px 12px; font-size: .9rem; font-weight: 500;
+    }
+    .step-list { display: flex; flex-direction: column; gap: 14px; }
+    .step-item {
+      display: flex; gap: 16px; align-items: flex-start; background: white;
+      padding: 14px 20px; border-radius: 18px;
+      border: 1px solid #e2edf7;
+    }
+    .step-num {
+      background: #1e5f8e; color: white; width: 30px; height: 30px;
+      border-radius: 12px; display: flex; align-items: center;
+      justify-content: center; font-weight: 700; flex-shrink: 0;
+    }
+    .step-text { font-size: 1.05rem; line-height: 1.5; color: #1c3c54; }
+    .step-text strong { color: #0b2b4f; }
+    .translations {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 18px; margin-top: 20px;
+    }
+    .lang-card {
+      background: #f0f7fe; border-radius: 20px; padding: 18px 18px 14px;
+      border-left: 6px solid #3b7cab;
+    }
+    .lang-card h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; color: #0b2b4f; }
+    .lang-card p { font-size: .95rem; line-height: 1.5; color: #1c3c54; margin-bottom: 8px; }
+    .footer-note {
+      text-align: center; margin-top: 28px; font-size: .95rem;
+      border-top: 1px solid #cde0ee; padding-top: 20px;
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 24px;
+    }
+    .footer-note .badge {
+      background: #e9f2fa; padding: 6px 18px; border-radius: 100px;
+      font-weight: 500; color: #4f6f8f;
+    }
+    .refresh-btn {
+      background: white; border: 1.5px solid #b9d2e7; border-radius: 40px;
+      padding: 8px 18px; font-size: .95rem; font-weight: 500; color: #1a5a9c;
+      cursor: pointer; font-family: inherit;
+    }
+    .refresh-btn:hover { background: #e3effa; }
+    .copyright {
+      text-align: center; margin-top: 14px; font-size: .85rem;
+      color: #6a8aa8;
+    }
+    @media (max-width: 600px) {
+      .page { padding: 22px 16px; }
+      .title-section h1 { font-size: 1.6rem; }
+      .qr-area { gap: 20px; }
+      .kiosk-print-btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="title-section">
+    <h1>📋 Scan & wait <span>Queue</span></h1>
+    <div class="subhead">
+      Scan the QR code to join the queue · ተራዎን ለመቀላቀል QR ኮዱን ይቃኙ · ተርእዮም ቁረጽ
+    </div>
+    <button class="kiosk-print-btn" id="printBtnTop">🖨️ Print / Save as PDF</button>
+    <p class="print-hint">Tip: In the print dialog, choose <strong>“Save as PDF”</strong>.</p>
+  </div>
+
+  <div class="qr-area">
+    <div class="qr-wrapper"><div id="qrcode"></div></div>
+
+    <div class="status-card" id="statusCard">
+      <!-- FORM -->
+      <div id="formView">
+        <div class="label">Join the queue</div>
+        <div class="form-row">
+          <label for="customerName">Full name</label>
+          <input id="customerName" type="text" placeholder="Enter your full name" autocomplete="name" />
+          <div class="input-hint">ሙሉ ስም · ምሉእ ስም · Maqaa guutuu</div>
+        </div>
+        <div class="form-row">
+          <label for="phone">Phone number</label>
+          <input id="phone" type="tel" placeholder="e.g. +251 91 123 4567" autocomplete="tel" />
+          <div class="input-hint">ስልክ ቁጥር · ቁጽሪ ስልኪ · Lakkoofsa bilbilaa</div>
+        </div>
+        <div class="form-row">
+          <label for="reason">Reason for visit</label>
+          <input id="reason" type="text" placeholder="e.g. Check-up, follow-up" />
+          <div class="input-hint">የጉብኝት ምክንያት · ምኽንያት ምብጻሕ · Sababa daawwannaa</div>
+        </div>
+        <button class="submit-btn" id="submitBtn">Join queue →</button>
+        <div class="input-hint" style="text-align:center;margin-top:8px;">
+          ተራውን ይቀላቀሉ · ተርእዮም ተጸምበር · Tarree seeni
+        </div>
+      </div>
+
+      <!-- TICKET -->
+      <div id="ticketView" style="display:none;">
+        <div class="label">Your ticket</div>
+        <div class="turn" id="ticketNumber">—</div>
+        <div class="waiting" id="waitingLine">⏳ <span id="waitingCount">—</span> ahead</div>
+        <div class="countdown" id="countdown">00:00</div>
+        <div class="countdown-label" id="countdownLabel">Estimated wait</div>
+        <div class="turn-msg" id="turnMsg">🎉 It's your turn! Please go to the service desk.</div>
+        <div class="removed-msg" id="removedMsg">⚠️ Your ticket is no longer active. Please see the staff.</div>
+        <div class="ticket-meta" id="ticketMeta"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="instructions">
+    <h2>📌 5 steps <span>scan · join · wait</span></h2>
+    <div class="step-list">
+      <div class="step-item"><div class="step-num">1</div><div class="step-text"><strong>Scan the QR code</strong> with your phone camera.</div></div>
+      <div class="step-item"><div class="step-num">2</div><div class="step-text"><strong>Enter name, phone, and reason</strong>, then tap "Join queue".</div></div>
+      <div class="step-item"><div class="step-num">3</div><div class="step-text"><strong>Watch your live position</strong> — "X ahead" updates in real time.</div></div>
+      <div class="step-item"><div class="step-num">4</div><div class="step-text"><strong>When it's your turn</strong> the screen says "It's your turn!".</div></div>
+      <div class="step-item"><div class="step-num">5</div><div class="step-text"><strong>Go to the service desk</strong> with your ticket number.</div></div>
+    </div>
+  </div>
+
+  <div class="translations">
+    <div class="lang-card">
+      <h3>🇪🇹 አማርኛ</h3>
+      <p>1. QR ኮዱን በስልክዎ ይቃኙ።</p>
+      <p>2. ስም፣ ስልክ ቁጥር እና የጉብኝት ምክንያት ያስገቡ፣ "ተራውን ይቀላቀሉ" ይጫኑ።</p>
+      <p>3. ቦታዎን ይከታተሉ — "X ከፊትዎ" በቀጥታ ይዘምናል።</p>
+      <p>4. ተራዎ ሲደርስ "ተራዎ ደርሷል!" ይላል።</p>
+      <p>5. ከቲኬትዎ ጋር ወደ አገልግሎት ይሂዱ።</p>
+    </div>
+    <div class="lang-card">
+      <h3>🇪🇹 ትግርኛ</h3>
+      <p>1. QR ኮድ ብስልክኻ ስካን ግበር።</p>
+      <p>2. ስም፣ ቁጽሪ ስልኪ እና ምኽንያት ምብጻሕካ ኣእቱ፣ "ተርእዮም ተጸምበር" ጠውቕ።</p>
+      <p>3. ቦታኻ ተኸታተል — "X ኣብ ቅድሚኻ" ብቐጥታ ይሕደስ።</p>
+      <p>4. ተርእኻ ምስ በጽሐ "ተርእኻ በጺሑ!" ይብል።</p>
+      <p>5. ምስ ቲኬትካ ናብ ኣገልግሎት ኪድ።</p>
+    </div>
+    <div class="lang-card">
+      <h3>🇪🇹 ኦሮሚፋ</h3>
+      <p>1. Koodii QR bilbila keetiin scan godhi.</p>
+      <p>2. Maqaa, lakkoofsa bilbilaa fi sababa daawwannaa galchi, "Tarree seeni" tuqi.</p>
+      <p>3. Bakka kee hordofi — "X si dura" kallattiin haaromfama.</p>
+      <p>4. Yeroon kee yoo ga'e "Yeroon kee ga'e!" jedha.</p>
+      <p>5. Tikkeetii kee waliin gara tajaajilaa deemi.</p>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    <span class="badge">🔔 Live queue</span>
+    <button class="refresh-btn" id="leaveBtn" style="display:none;">❌ Leave queue</button>
+    <button class="refresh-btn" id="printBtn">📄 Print this page</button>
+  </div>
+
+  <div class="copyright">
+    © <span id="year"></span> Jamal Ahmed Queue Appointment System. All rights reserved.
+  </div>
+</div>
+
+<script src="firebase-config.js"></script>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import {
+  getDatabase, ref, onValue, push, set, remove,
+  runTransaction, serverTimestamp
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+const app = initializeApp(window.FIREBASE_CONFIG);
+const db = getDatabase(app);
+
+const SECONDS_PER_CUSTOMER = 120; // 2 minutes per customer ahead
+
+// ============================================================
+// DOM
+// ============================================================
+const formView    = document.getElementById('formView');
+const ticketView  = document.getElementById('ticketView');
+const leaveBtn    = document.getElementById('leaveBtn');
+const countdownEl = document.getElementById('countdown');
+const countdownLbl= document.getElementById('countdownLabel');
+const turnMsg     = document.getElementById('turnMsg');
+const removedMsg  = document.getElementById('removedMsg');
+const ticketNumEl = document.getElementById('ticketNumber');
+const waitingEl   = document.getElementById('waitingCount');
+const waitingLine = document.getElementById('waitingLine');
+const metaEl      = document.getElementById('ticketMeta');
+const nameInput   = document.getElementById('customerName');
+const phoneInput  = document.getElementById('phone');
+const reasonInput = document.getElementById('reason');
+const submitBtn   = document.getElementById('submitBtn');
+
+// ============================================================
+// STATE
+// ============================================================
+let myId     = localStorage.getItem('qid');
+let myNum    = localStorage.getItem('qnum');
+let myName   = localStorage.getItem('qname') || '';
+let myPhone  = localStorage.getItem('qphone') || '';
+let myReason = localStorage.getItem('qreason') || '';
+
+let allTickets = {};
+let nowServing = null;
+let lastSlots  = null;
+let anchorAt   = Date.now();
+let tickTimer  = null;
+
+// ============================================================
+// HELPERS
+// ============================================================
+function fmt(sec) {
+  if (sec < 0) sec = 0;
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+}
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderForm() {
+  formView.style.display = 'block';
+  ticketView.style.display = 'none';
+  leaveBtn.style.display = 'none';
+  if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+}
+
+function renderTicket() {
+  formView.style.display = 'none';
+  ticketView.style.display = 'block';
+  leaveBtn.style.display = 'inline-flex';
+
+  const myTicket = myId ? allTickets[myId] : null;
+  const ticketNum = myTicket ? myTicket.ticket : (myNum || '—');
+
+  ticketNumEl.textContent = ticketNum;
+
+  turnMsg.classList.remove('show');
+  removedMsg.classList.remove('show');
+  countdownEl.style.display = 'block';
+  countdownLbl.style.display = 'block';
+  waitingLine.style.display = 'block';
+
+  const n = myTicket ? myTicket.name : myName;
+  const ph = myTicket ? myTicket.phone : myPhone;
+  const r = myTicket ? myTicket.reason : myReason;
+
+  metaEl.innerHTML =
+    '<strong>' + esc(n || '') + '</strong>' +
+    (ph ? '<br>📞 ' + esc(ph) : '') +
+    '<br>' + esc(r || '');
+
+  if (myTicket) {
+    const ids = Object.keys(allTickets).sort();
+    const position = ids.indexOf(myId);
+    const waitingAhead = position;
+    const slotsAhead = position + (nowServing ? 1 : 0);
+
+    if (waitingAhead === 0) {
+      waitingLine.innerHTML = '✅ <span style="color:#1b5e20;font-weight:700;">You\'re next!</span>';
+    } else {
+      waitingLine.innerHTML = '⏳ <span id="waitingCount">' + waitingAhead + '</span> ahead';
+    }
+
+    if (slotsAhead !== lastSlots) {
+      lastSlots = slotsAhead;
+      anchorAt = Date.now();
+    }
+    startTick();
+  } else if (nowServing && nowServing.ticket === ticketNum) {
+    turnMsg.classList.add('show');
+    countdownEl.style.display = 'none';
+    countdownLbl.style.display = 'none';
+    waitingLine.style.display = 'none';
+    if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+  } else {
+    removedMsg.classList.add('show');
+    countdownEl.style.display = 'none';
+    countdownLbl.style.display = 'none';
+    waitingLine.style.display = 'none';
+    if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+  }
+}
+
+function startTick() {
+  if (tickTimer) return;
+  tickCountdown();
+  tickTimer = setInterval(tickCountdown, 1000);
+}
+
+function tickCountdown() {
+  if (lastSlots === null) return;
+  const remainingMs = anchorAt + lastSlots * SECONDS_PER_CUSTOMER * 1000 - Date.now();
+  const remainingSec = Math.max(0, Math.ceil(remainingMs / 1000));
+  countdownEl.textContent = fmt(remainingSec);
+}
+
+// ============================================================
+// FIREBASE LISTENERS
+// ============================================================
+onValue(ref(db, 'queue/tickets'), (snap) => {
+  allTickets = snap.val() || {};
+  if (myId) renderTicket(); else renderForm();
+});
+
+onValue(ref(db, 'queue/config/nowServing'), (snap) => {
+  nowServing = snap.val();
+  if (myId) renderTicket(); else renderForm();
+});
+
+// ============================================================
+// ACTIONS
+// ============================================================
+async function joinQueue() {
+  const name = nameInput.value.trim();
+  const phone = phoneInput.value.trim();
+  const reason = reasonInput.value.trim();
+
+  if (!name) { alert('Please enter your name.'); nameInput.focus(); return; }
+  if (!phone) { alert('Please enter your phone number.'); phoneInput.focus(); return; }
+  if (!reason) { alert('Please enter the reason for your visit.'); reasonInput.focus(); return; }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Joining…';
+
+  try {
+    const counterRef = ref(db, 'queue/config/nextNumber');
+    const result = await runTransaction(counterRef, (cur) => (cur || 0) + 1);
+    const num = result.snapshot.val();
+    const ticketNum = 'A-' + String(num).padStart(3, '0');
+
+    const newRef = push(ref(db, 'queue/tickets'));
+    await set(newRef, {
+      ticket: ticketNum,
+      name: name,
+      phone: phone,
+      reason: reason,
+      createdAt: serverTimestamp()
+    });
+
+    myId = newRef.key;
+    myNum = ticketNum;
+    myName = name;
+    myPhone = phone;
+    myReason = reason;
+    localStorage.setItem('qid', myId);
+    localStorage.setItem('qnum', myNum);
+    localStorage.setItem('qname', myName);
+    localStorage.setItem('qphone', myPhone);
+    localStorage.setItem('qreason', myReason);
+
+    lastSlots = null;
+    renderTicket();
+    document.getElementById('statusCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch (err) {
+    console.error(err);
+    alert('Could not join queue: ' + err.message);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Join queue →';
+  }
+}
+
+async function leaveQueue() {
+  if (!confirm('Leave the queue? You will lose your ticket.')) return;
+  if (myId) {
+    try { await remove(ref(db, 'queue/tickets/' + myId)); } catch (e) {}
+  }
+  ['qid','qnum','qname','qphone','qreason'].forEach(k => localStorage.removeItem(k));
+  myId = myNum = myName = myPhone = myReason = null;
+  lastSlots = null;
+  if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+  renderForm();
+}
+
+// ============================================================
+// WIRE UP
+// ============================================================
+document.getElementById('submitBtn').addEventListener('click', joinQueue);
+leaveBtn.addEventListener('click', leaveQueue);
+
+function doPrint(e) { if (e) e.preventDefault(); window.print(); }
+document.getElementById('printBtnTop').addEventListener('click', doPrint);
+document.getElementById('printBtn').addEventListener('click', doPrint);
+
+document.getElementById('year').textContent = new Date().getFullYear();
+
+// ============================================================
+// QR
+// ============================================================
+const pageUrl = window.location.href.split('?')[0].split('#')[0];
+const qrTarget = pageUrl.startsWith('http')
+  ? pageUrl
+  : 'https://ramis2.github.io/index.html/';
+
+const qrContainer = document.getElementById('qrcode');
+qrContainer.innerHTML = '';
+new QRCode(qrContainer, {
+  text: qrTarget,
+  width: 200, height: 200,
+  colorDark: '#0b2b4f', colorLight: '#ffffff',
+  correctLevel: QRCode.CorrectLevel.H
+});
+
+// Initial render
+if (myId) renderTicket(); else renderForm();
+</script>
+
+<style media="print">
+  body { background: white; padding: 0; }
+  .page { box-shadow: none; border-radius: 0; padding: 1.2cm; }
+  .kiosk-print-btn, .print-hint, .refresh-btn, .footer-note { display: none !important; }
+  .qr-wrapper { box-shadow: none; border: 1px solid #ccc; }
+  .status-card { box-shadow: none; background: #f2f6fa; }
+</style>
+</body>
+</html>
