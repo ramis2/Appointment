@@ -1,9 +1,9 @@
 window.FIREBASE_CONFIG = {
-  apiKey: "AIzaSy...",                  // Paste your actual API key
-  authDomain: "your-project.firebaseapp.com",
-  databaseURL: "https://your-project-default-rtdb.firebaseio.com", // 👈 MUST be exact
-  projectId: "your-project",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abc123"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "appointment-92dc9.firebaseapp.com",
+  databaseURL: "https://appointment-92dc9-default-rtdb.firebaseio.com", // 👈 MUST BE EXACTLY THIS
+  projectId: "appointment-92dc9",
+  storageBucket: "appointment-92dc9.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
